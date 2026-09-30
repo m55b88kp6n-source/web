@@ -1,0 +1,104 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>ブラウザで遊べるチェス|AI対戦・2人対戦【無料】</title>
+<meta name="description" content="インストール不要、無料で遊べるブラウザチェス。コンピューターとの対戦と、2人での対戦に対応。スマホでもパソコンでも遊べます。">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@700&family=Zen+Kaku+Gothic+New:wght@500&display=swap">
+<style>
+:root{--bg:#ecebf5;--fg:#221f36;--mut:#6b6788;--l:#f3f1fb;--d:#8a7cc4;--ac:#f2b84b;--card:#fff;--bs:min(92vw,560px);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14121f;--fg:#ece9fa;--mut:#a29ec2;--l:#d9d4f0;--d:#6153a0;--card:#1e1b30}}
+:root[data-theme="dark"]{--bg:#14121f;--fg:#ece9fa;--mut:#a29ec2;--l:#d9d4f0;--d:#6153a0;--card:#1e1b30}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+body{margin:0;background:radial-gradient(120% 70% at 50% 0,var(--card),var(--bg));color:var(--fg);font-family:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;display:flex;flex-direction:column;align-items:center;gap:20px;padding:28px 12px 40px}
+h1{margin:0;font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif;font-size:2.4rem;letter-spacing:.3em;padding-left:.3em}
+#st{display:inline-flex;align-items:center;gap:10px;padding:9px 20px;border-radius:999px;background:var(--card);box-shadow:0 4px 14px rgba(34,31,54,.15);font-size:1rem}
+#st::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid #8a7cc4;background:#fff}
+#st[data-t="b"]::before{background:#221f36}
+#bd{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));width:var(--bs);height:var(--bs);border-radius:16px;overflow:hidden;box-shadow:0 0 0 8px var(--card),0 22px 44px rgba(34,31,54,.3);touch-action:manipulation}
+.sq{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;overflow:hidden;font-size:calc(var(--bs)/8*.78);line-height:1;cursor:pointer;user-select:none;-webkit-user-select:none}
+.sq:hover{filter:brightness(1.07)}
+.sq.l{background:var(--l)}.sq.d{background:var(--d)}
+.sq.last{box-shadow:inset 0 0 0 100px rgba(242,184,75,.42)}
+.sq.sel{box-shadow:inset 0 0 0 100px rgba(242,184,75,.65)}
+.sq.chk{box-shadow:inset 0 0 0 100px rgba(226,74,92,.65)}
+.sq.mv::after{content:"";position:absolute;width:26%;height:26%;border-radius:50%;background:rgba(34,31,54,.32)}
+.sq.cap::after{width:84%;height:84%;background:none;border:4px solid rgba(34,31,54,.35)}
+.w{color:#fff;text-shadow:0 0 2px #2b2646,0 0 2px #2b2646,0 3px 5px rgba(0,0,0,.35)}
+.b{color:#241f3d;text-shadow:0 3px 5px rgba(0,0,0,.3)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+button{font:inherit;padding:9px 18px;border:1.5px solid var(--mut);background:var(--card);color:var(--fg);border-radius:999px;cursor:pointer}
+button:hover{border-color:var(--fg)}
+button:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+button.on{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+</style></head><body>
+<h1>チェス</h1>
+<div id="st" role="status" aria-live="polite"></div>
+<div id="bd"></div>
+<div class="bar"><button id="m1">コンピューターと対戦</button><button id="m2">2人で対戦</button><button id="un">一手戻す</button><button id="nw">新しいゲーム</button></div>
+<script>
+const G={k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'},isW=p=>p<'a';
+const N=[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]],Kd=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]],D=[[-1,-1],[-1,1],[1,-1],[1,1]],O=[[-1,0],[1,0],[0,-1],[0,1]];
+const start=()=>({b:'rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR'.split('').map(c=>c=='.'?null:c),t:'w',c:{K:1,Q:1,k:1,q:1},ep:-1,last:null});
+function pseudo(s,col,atk){const b=s.b,out=[];
+for(let i=0;i<64;i++){const p=b[i];if(!p||(isW(p)?'w':'b')!=col)continue;
+const r=i>>3,f=i&7,q=p.toLowerCase(),w=col=='w';
+const add=(t,x)=>out.push({f:i,t,...x});
+if(q=='p'){const dr=w?-1:1,nr=r+dr;
+ if(!atk&&nr>=0&&nr<8&&!b[nr*8+f]){add(nr*8+f,{pr:nr==0||nr==7});if(r==(w?6:1)&&!b[(nr+dr)*8+f])add((nr+dr)*8+f,{})}
+ for(const df of[-1,1]){const nf=f+df;if(nf<0||nf>7||nr<0||nr>7)continue;const t=nr*8+nf,x=b[t];
+  if(atk||(x&&isW(x)!=w))add(t,{pr:nr==0||nr==7});else if(t==s.ep)add(t,{e:1})}
+}else{
+ const step=(ds,sl)=>{for(const[dr,df]of ds){let nr=r+dr,nf=f+df;
+  while(nr>=0&&nr<8&&nf>=0&&nf<8){const t=nr*8+nf,x=b[t];
+   if(!x||isW(x)!=w||atk)add(t,{});
+   if(x||!sl)break;nr+=dr;nf+=df}}};
+ if(q=='n')step(N,0);else if(q=='k')step(Kd,0);else if(q=='b')step(D,1);else if(q=='r')step(O,1);else step(D.concat(O),1)}}
+return out}
+function apply(s,m){const b=s.b.slice(),p=b[m.f],w=isW(p),c={...s.c};
+b[m.t]=m.pr?(w?'Q':'q'):p;b[m.f]=null;
+if(m.e)b[m.t+(w?8:-8)]=null;
+if(m.cs){if(m.t>m.f){b[m.f+1]=b[m.f+3];b[m.f+3]=null}else{b[m.f-1]=b[m.f-4];b[m.f-4]=null}}
+if(p=='K'){c.K=c.Q=0}if(p=='k'){c.k=c.q=0}
+for(const x of[m.f,m.t]){if(x==63)c.K=0;if(x==56)c.Q=0;if(x==7)c.k=0;if(x==0)c.q=0}
+return{b,t:w?'b':'w',c,ep:p.toLowerCase()=='p'&&Math.abs(m.t-m.f)==16?(m.f+m.t)/2:-1,last:[m.f,m.t]}}
+const king=(b,col)=>b.indexOf(col=='w'?'K':'k');
+const attacked=(s,sq,by)=>pseudo(s,by,1).some(m=>m.t==sq);
+const inChk=s=>attacked(s,king(s.b,s.t),s.t=='w'?'b':'w');
+function legal(s){const col=s.t,opp=col=='w'?'b':'w',out=[];
+for(const m of pseudo(s,col,0)){const ns=apply(s,m);if(!attacked(ns,king(ns.b,col),opp))out.push(m)}
+const h=col=='w'?60:4,k=col=='w'?'K':'k',q=col=='w'?'Q':'q',R=col=='w'?'R':'r',b=s.b;
+if(b[h]==k&&!attacked(s,h,opp)){
+ if(s.c[k]&&!b[h+1]&&!b[h+2]&&b[h+3]==R&&!attacked(s,h+1,opp)&&!attacked(s,h+2,opp))out.push({f:h,t:h+2,cs:1});
+ if(s.c[q]&&!b[h-1]&&!b[h-2]&&!b[h-3]&&b[h-4]==R&&!attacked(s,h-1,opp)&&!attacked(s,h-2,opp))out.push({f:h,t:h-2,cs:1})}
+return out}
+const V={p:100,n:320,b:330,r:500,q:900,k:0};
+const ev=s=>s.b.reduce((a,p)=>p?a+(isW(p)?1:-1)*V[p.toLowerCase()]:a,0);
+function best(s){let bm=null,bs=-1e9;
+for(const m of legal(s)){const n=apply(s,m),rs=legal(n);let sc;
+ if(!rs.length)sc=inChk(n)?1e6:0;
+ else{sc=1e9;for(const r of rs)sc=Math.min(sc,-ev(apply(n,r)))}
+ sc+=Math.random()*8;if(sc>bs){bs=sc;bm=m}}
+return bm}
+let S=start(),hist=[],sel=-1,mode='cpu',busy=0;
+const $=id=>document.getElementById(id);
+function render(){const ms=legal(S),chk=inChk(S),bd=$('bd');bd.innerHTML='';
+for(let i=0;i<64;i++){const d=document.createElement('div'),p=S.b[i];
+ d.className='sq '+(((i>>3)+(i&7))%2?'d':'l');
+ if(S.last&&S.last.includes(i))d.classList.add('last');
+ if(i==sel)d.classList.add('sel');
+ if(chk&&p==(S.t=='w'?'K':'k'))d.classList.add('chk');
+ if(sel>=0&&ms.some(m=>m.f==sel&&m.t==i)){d.classList.add('mv');if(p)d.classList.add('cap')}
+ if(p){d.textContent=G[p.toLowerCase()]+'\uFE0E';d.classList.add(isW(p)?'w':'b')}
+ d.onclick=()=>click(i);bd.append(d)}
+$('st').textContent=!ms.length?(chk?'チェックメイト!'+(S.t=='w'?'黒':'白')+'の勝ちです':'ステイルメイト(引き分け)'):(S.t=='w'?'白':'黒')+'の番です'+(chk?'(チェック!)':'');
+$('st').dataset.t=S.t;$('m1').className=mode=='cpu'?'on':'';$('m2').className=mode=='2p'?'on':''}
+function click(i){if(busy||(mode=='cpu'&&S.t=='b'))return;
+const ms=legal(S),m=ms.find(m=>m.f==sel&&m.t==i);
+if(m){hist.push(S);S=apply(S,m);sel=-1;render();
+ if(mode=='cpu'&&legal(S).length){busy=1;setTimeout(()=>{const a=best(S);hist.push(S);S=apply(S,a);busy=0;render()},350)}
+ return}
+const p=S.b[i];sel=p&&isW(p)==(S.t=='w')?i:-1;render()}
+function reset(){S=start();hist=[];sel=-1;render()}
+$('nw').onclick=()=>{if(!busy)reset()};
+$('un').onclick=()=>{if(busy||!hist.length)return;S=hist.pop();if(mode=='cpu'&&S.t=='b'&&hist.length)S=hist.pop();sel=-1;render()};
+$('m1').onclick=()=>{if(!busy){mode='cpu';reset()}};
+$('m2').onclick=()=>{if(!busy){mode='2p';reset()}};
+render();
+</script></body></html>
